@@ -29,8 +29,13 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<BanService>();
 
+// Logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+
 // JWT
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "your-secret-key-change-in-production-minimum-32-characters";
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "your-secret-key-change-in-production-minimum-32-characters-long-key-here";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LauncherPhantomServer";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "LauncherPhantomClient";
 
@@ -60,19 +65,20 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
     db.Database.EnsureCreated();
+    Console.WriteLine("[DATABASE] Base de datos inicializada correctamente");
 }
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    Console.WriteLine("[SWAGGER] Swagger disponible en /swagger");
 }
-
-// REMOVER esta línea que causa el warning:
-// app.UseHttpsRedirection();
 
 app.UseRouting();
 app.UseCors("AllowAll");
+
+Console.WriteLine("[MIDDLEWARE] Aplicando middleware de bans y autenticación...");
 
 // Ban Middleware
 app.UseMiddleware<BanMiddleware>();
@@ -83,4 +89,14 @@ app.UseAuthorization();
 app.MapControllers();
 app.UseStaticFiles();
 
-app.Run("http://26.96.149.7:5000");
+var port = 5000;
+var host = "0.0.0.0";
+var urls = $"http://{host}:{port}";
+
+app.Urls.Clear();
+app.Urls.Add(urls);
+
+Console.WriteLine($"[SERVER] Iniciando servidor en {urls}");
+Console.WriteLine("[SERVER] Presiona Ctrl+C para detener");
+
+app.Run();

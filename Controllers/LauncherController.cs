@@ -17,12 +17,12 @@ namespace LauncherPhantomServer.Controllers
         [HttpGet("version")]
         public IActionResult GetVersion()
         {
-            _logger.LogInformation("[LauncherController] GetVersion request");
+            _logger.LogInformation("[LauncherController] Solicitud de versión");
 
             var versionInfo = new VersionInfo
             {
                 Version = "0.1.0",
-                DownloadUrl = "http://26.96.149.7:5000/downloads/launcher-update.exe",
+                DownloadUrl = "http://localhost:5000/downloads/launcher-update.exe",
                 Changes = "- Versión inicial\n- Autenticación\n- Sistema de bans",
                 Required = false
             };

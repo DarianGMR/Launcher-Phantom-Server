@@ -23,20 +23,20 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
-                _logger.LogInformation("[AuthController] Login request for user: {Username}", request.Username);
+                _logger.LogInformation("[AuthController] Login request para usuario: {Username}", request.Username);
 
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("[AuthController] Invalid model state");
+                    _logger.LogWarning("[AuthController] Estado de modelo inválido en login");
                     return BadRequest(new AuthResponse { Success = false, Error = "Datos inválidos" });
                 }
 
                 var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-                _logger.LogInformation("[AuthController] Client IP: {ClientIp}", clientIp);
+                _logger.LogInformation("[AuthController] IP del cliente: {ClientIp}", clientIp);
 
                 var response = await _authService.LoginAsync(request, clientIp);
 
-                _logger.LogInformation("[AuthController] Login response success: {Success}", response.Success);
+                _logger.LogInformation("[AuthController] Respuesta de login - Éxito: {Success}", response.Success);
 
                 if (response.Success)
                 {
@@ -49,7 +49,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AuthController] Exception in Login");
+                _logger.LogError(ex, "[AuthController] Excepción en Login");
                 return StatusCode(500, new AuthResponse 
                 { 
                     Success = false, 
@@ -63,17 +63,17 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
-                _logger.LogInformation("[AuthController] Register request for user: {Username}", request.Username);
+                _logger.LogInformation("[AuthController] Register request para usuario: {Username}", request.Username);
 
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("[AuthController] Invalid model state");
+                    _logger.LogWarning("[AuthController] Estado de modelo inválido en register");
                     return BadRequest(new AuthResponse { Success = false, Error = "Datos inválidos" });
                 }
 
                 var response = await _authService.RegisterAsync(request);
 
-                _logger.LogInformation("[AuthController] Register response success: {Success}", response.Success);
+                _logger.LogInformation("[AuthController] Respuesta de register - Éxito: {Success}", response.Success);
 
                 if (response.Success)
                 {
@@ -86,19 +86,13 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AuthController] Exception in Register");
+                _logger.LogError(ex, "[AuthController] Excepción en Register");
                 return StatusCode(500, new AuthResponse 
                 { 
                     Success = false, 
                     Error = $"Error del servidor: {ex.Message}" 
                 });
             }
-        }
-
-        [HttpGet("health")]
-        public IActionResult Health()
-        {
-            return Ok(new { status = "ok", timestamp = DateTime.UtcNow });
         }
     }
 }
