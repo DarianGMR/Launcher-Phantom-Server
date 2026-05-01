@@ -89,6 +89,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.UseStaticFiles();
 
+// IMPORTANTE: En Development/Debug, usar IIS Express (puerto 5000) o Kestrel con --urls
 var port = 5000;
 var host = "0.0.0.0";
 var urls = $"http://{host}:{port}";
@@ -96,7 +97,12 @@ var urls = $"http://{host}:{port}";
 app.Urls.Clear();
 app.Urls.Add(urls);
 
-Console.WriteLine($"[SERVER] Iniciando servidor en {urls}");
+Console.WriteLine($"[SERVER] ========================================");
+Console.WriteLine($"[SERVER] Iniciando servidor en: {urls}");
+Console.WriteLine($"[SERVER] URL Accesible: http://localhost:{port}");
+Console.WriteLine($"[SERVER] Health Check: http://localhost:{port}/api/launcher/health");
+Console.WriteLine($"[SERVER] Swagger: http://localhost:{port}/swagger");
+Console.WriteLine($"[SERVER] ========================================");
 Console.WriteLine("[SERVER] Presiona Ctrl+C para detener");
 
 app.Run();
