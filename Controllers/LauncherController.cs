@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using LauncherPhantomServer.Models;
+using System.Diagnostics;
 
 namespace LauncherPhantomServer.Controllers
 {
@@ -14,27 +14,39 @@ namespace LauncherPhantomServer.Controllers
             _logger = logger;
         }
 
-        [HttpGet("version")]
-        public IActionResult GetVersion()
-        {
-            _logger.LogInformation("[LauncherController] Solicitud de versión");
-
-            var versionInfo = new VersionInfo
-            {
-                Version = "0.1.0",
-                DownloadUrl = "http://localhost:5000/downloads/launcher-update.exe",
-                Changes = "- Versión inicial\n- Autenticación\n- Sistema de bans",
-                Required = false
-            };
-
-            return Ok(versionInfo);
-        }
-
         [HttpGet("health")]
         public IActionResult Health()
         {
-            _logger.LogInformation("[LauncherController] Health check");
-            return Ok(new { status = "ok", timestamp = DateTime.UtcNow });
+            try
+            {
+                _logger.LogInformation("[LauncherController] Health check request");
+                return Ok(new { status = "ok", message = "Server is running" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[LauncherController] Error en Health check");
+                return StatusCode(500, new { status = "error", message = ex.Message });
+            }
+        }
+
+        [HttpGet("version")]
+        public IActionResult Version()
+        {
+            try
+            {
+                _logger.LogInformation("[LauncherController] Version request");
+                return Ok(new 
+                { 
+                    version = "1.0.0",
+                    releaseDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                    status = "ok"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[LauncherController] Error obteniendo versión");
+                return StatusCode(500, new { status = "error", message = ex.Message });
+            }
         }
     }
 }
