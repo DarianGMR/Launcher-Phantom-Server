@@ -4,24 +4,60 @@ using System.Text;
 using LauncherPhantomServer.Data;
 using LauncherPhantomServer.Services;
 using LauncherPhantomServer.Middleware;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ Optimizaciones de rendimiento
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+builder.Services.AddResponseCompression(options =>
+{
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json" });
+    options.EnableForHttps = true;
+});
+
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState.Values.SelectMany(v => v.Errors);
+            return new BadRequestObjectResult(new 
+            { 
+                success = false, 
+                errors = errors.Select(e => e.ErrorMessage).ToList() 
+            });
+        };
+    });
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowPhantomClient", policy =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .WithExposedHeaders("Content-Type", "X-Total-Count");
     });
 });
 
-// Database
+// ✅ Database con pooling optimizado
 builder.Services.AddDbContext<DatabaseContext>(options =>
-    options.UseSqlite("Data Source=launcher.db"));
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+        ?? "Data Source=launcher.db";
+    options.UseSqlite(connectionString)
+           .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
 
 // Services
 builder.Services.AddScoped<JwtService>();
@@ -29,15 +65,33 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<BanService>();
 
-// Logging
+// ✅ Caching distribuido en memoria
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<CacheService>();
+
+// Logging mejorado
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddDebug();
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Logging.SetMinimumLevel(LogLevel.Warning);
+}
+else
+{
+    builder.Logging.SetMinimumLevel(LogLevel.Information);
+}
 
-// JWT
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "your-secret-key-change-in-production-minimum-32-characters-long-key-here";
+// JWT Configuration
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("JWT Key must be configured and at least 32 characters long");
+}
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LauncherPhantomServer";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "LauncherPhantomClient";
+var jwtExpiryMinutes = builder.Configuration.GetValue<int>("Jwt:ExpiryMinutes", 1440);
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
@@ -50,7 +104,8 @@ builder.Services.AddAuthentication("Bearer")
             ValidIssuer = jwtIssuer,
             ValidateAudience = true,
             ValidAudience = jwtAudience,
-            ValidateLifetime = true
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
     });
 
@@ -58,27 +113,59 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// ✅ Rate limiting SIMPLIFICADO para .NET 8
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 5
+            }));
+});
+
 var app = builder.Build();
 
-// Create database
-using (var scope = app.Services.CreateScope())
+// ✅ Inicializar base de datos
+try
 {
-    var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
-    db.Database.EnsureCreated();
-    Console.WriteLine("[DATABASE] Base de datos inicializada correctamente");
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
+        db.Database.EnsureCreated();
+        Console.WriteLine("[DATABASE] ✅ Base de datos inicializada correctamente");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[DATABASE] ❌ Error al inicializar BD: {ex.Message}");
+    throw;
 }
 
+// Middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    Console.WriteLine("[SWAGGER] Swagger disponible en /swagger");
+    Console.WriteLine("[SWAGGER] ✅ Swagger disponible en /swagger");
 }
 
-app.UseRouting();
-app.UseCors("AllowAll");
+// ✅ Usar compresión de respuestas
+app.UseResponseCompression();
 
-Console.WriteLine("[MIDDLEWARE] Aplicando middleware de bans y autenticación...");
+app.UseRouting();
+app.UseCors("AllowPhantomClient");
+
+// ✅ Aplicar rate limiting
+app.UseRateLimiter();
+
+Console.WriteLine("[MIDDLEWARE] Aplicando middleware de seguridad y autenticación...");
 
 // Ban Middleware
 app.UseMiddleware<BanMiddleware>();
@@ -89,20 +176,32 @@ app.UseAuthorization();
 app.MapControllers();
 app.UseStaticFiles();
 
-// IMPORTANTE: En Development/Debug, usar IIS Express (puerto 5000) o Kestrel con --urls
-var port = 5000;
-var host = "0.0.0.0";
+// Configuration
+var port = builder.Configuration.GetValue<int>("Server:Port", 5000);
+var host = builder.Configuration["Server:Host"] ?? "0.0.0.0";
 var urls = $"http://{host}:{port}";
 
 app.Urls.Clear();
 app.Urls.Add(urls);
 
-Console.WriteLine($"[SERVER] ========================================");
-Console.WriteLine($"[SERVER] Iniciando servidor en: {urls}");
-Console.WriteLine($"[SERVER] URL Accesible: http://localhost:{port}");
-Console.WriteLine($"[SERVER] Health Check: http://localhost:{port}/api/launcher/health");
-Console.WriteLine($"[SERVER] Swagger: http://localhost:{port}/swagger");
-Console.WriteLine($"[SERVER] ========================================");
-Console.WriteLine("[SERVER] Presiona Ctrl+C para detener");
+// Banner de inicio
+Console.WriteLine("\n");
+Console.WriteLine("╔════════════════════════════════════════════╗");
+Console.WriteLine("║  🚀 LAUNCHER PHANTOM SERVER - OPTIMIZADO  ║");
+Console.WriteLine("╠════════════════════════════════════════════╣");
+Console.WriteLine($"║ 🌐 URL: {urls.PadRight(42)}║");
+Console.WriteLine($"║ 🏠 Local: http://localhost:{port}         {new string(' ', Math.Max(0, 5 - port.ToString().Length))}║");
+Console.WriteLine($"║ 🏥 Health: http://localhost:{port}/api/launcher/health");
+Console.WriteLine($"║ 📚 Swagger: http://localhost:{port}/swagger");
+Console.WriteLine("║ ✅ Servidor iniciado correctamente          ║");
+Console.WriteLine("╚════════════════════════════════════════════╝\n");
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[FATAL] ❌ Error crítico: {ex.Message}");
+    throw;
+}

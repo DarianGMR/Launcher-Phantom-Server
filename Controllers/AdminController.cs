@@ -12,112 +12,216 @@ namespace LauncherPhantomServer.Controllers
     {
         private readonly UserService _userService;
         private readonly BanService _banService;
+        private readonly ILogger<AdminController> _logger;
 
-        public AdminController(UserService userService, BanService banService)
+        public AdminController(
+            UserService userService,
+            BanService banService,
+            ILogger<AdminController> logger)
         {
             _userService = userService;
             _banService = banService;
+            _logger = logger;
         }
 
         [HttpGet("users")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
         public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _userService.GetAllUsersAsync();
-            return Ok(users.Select(u => new
+            try
             {
-                u.Id,
-                u.Username,
-                u.Email,
-                u.CreatedAt,
-                u.LastLogin,
-                u.IsActive,
-                u.LastIp
-            }));
+                var users = await _userService.GetAllUsersAsync();
+                
+                var result = users.Select(u => new
+                {
+                    u.Id,
+                    u.Username,
+                    u.Email,
+                    u.CreatedAt,
+                    u.LastLogin,
+                    u.IsActive,
+                    u.LastIp,
+                    BanCount = u.Bans.Count
+                }).OrderByDescending(u => u.CreatedAt);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AdminController] Error obteniendo usuarios");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
 
         [HttpGet("users/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
         public async Task<IActionResult> GetUser(int id)
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (user == null) return NotFound();
-            
-            return Ok(new
+            try
             {
-                user.Id,
-                user.Username,
-                user.Email,
-                user.CreatedAt,
-                user.LastLogin,
-                user.IsActive,
-                user.LastIp,
-                Bans = user.Bans.Select(b => new { b.Id, b.Reason, b.ExpiresAt, b.IsPermanent })
-            });
+                var user = await _userService.GetUserByIdAsync(id);
+                if (user == null)
+                    return NotFound(new { error = "Usuario no encontrado" });
+
+                return Ok(new
+                {
+                    user.Id,
+                    user.Username,
+                    user.Email,
+                    user.CreatedAt,
+                    user.LastLogin,
+                    user.IsActive,
+                    user.LastIp,
+                    Bans = user.Bans.Select(b => new
+                    {
+                        b.Id,
+                        b.Reason,
+                        b.BannedAt,
+                        b.ExpiresAt,
+                        b.IsPermanent
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[AdminController] Error obteniendo usuario {id}");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
 
         [HttpGet("bans")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
         public async Task<IActionResult> GetActiveBans()
         {
-            var bans = await _banService.GetActiveBansAsync();
-            return Ok(bans.Select(b => new
+            try
             {
-                b.Id,
-                b.UserId,
-                User = b.User == null ? null : new { b.User.Id, b.User.Username, b.User.Email },
-                b.IpAddress,
-                b.Reason,
-                b.BannedAt,
-                b.ExpiresAt,
-                b.IsPermanent
-            }));
+                var bans = await _banService.GetActiveBansAsync();
+
+                var result = bans.Select(b => new
+                {
+                    b.Id,
+                    b.UserId,
+                    User = b.User == null ? null : new { b.User.Id, b.User.Username, b.User.Email },
+                    b.IpAddress,
+                    b.Reason,
+                    b.BannedAt,
+                    b.ExpiresAt,
+                    b.IsPermanent
+                }).OrderByDescending(b => b.BannedAt);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AdminController] Error obteniendo bans");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
 
         [HttpPost("ban")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
         public async Task<IActionResult> BanUser([FromBody] BanRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
 
-            var user = await _userService.GetUserByIdAsync(request.UserId);
-            if (user == null) return NotFound("Usuario no encontrado");
+                if (request.UserId <= 0 || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(new { error = "Datos de ban inválidos" });
 
-            var success = await _banService.BanUserAsync(
-                request.UserId,
-                user.LastIp ?? "unknown",
-                request.Reason,
-                request.DurationHours,
-                request.AdminId
-            );
+                var user = await _userService.GetUserByIdAsync(request.UserId);
+                if (user == null)
+                    return NotFound(new { error = "Usuario no encontrado" });
 
-            if (!success) return BadRequest("Error al banear el usuario");
+                var success = await _banService.BanUserAsync(
+                    request.UserId,
+                    user.LastIp ?? "unknown",
+                    request.Reason,
+                    request.DurationHours,
+                    request.AdminId
+                );
 
-            return Ok(new { success = true, message = "Usuario baneado correctamente" });
+                if (!success)
+                    return BadRequest(new { error = "Error al banear usuario" });
+
+                return Ok(new { success = true, message = "Usuario baneado correctamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AdminController] Error baneando usuario");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
 
         [HttpDelete("unban/{banId}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
         public async Task<IActionResult> UnbanUser(int banId)
         {
-            var success = await _banService.UnbanUserAsync(banId);
-            if (!success) return NotFound("Ban no encontrado");
+            try
+            {
+                var success = await _banService.UnbanUserAsync(banId);
+                if (!success)
+                    return NotFound(new { error = "Ban no encontrado" });
 
-            return Ok(new { success = true, message = "Usuario desbaneado correctamente" });
+                return Ok(new { success = true, message = "Usuario desbaneado correctamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AdminController] Error desbaneando usuario");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
 
         [HttpPost("deactivate/{userId}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
         public async Task<IActionResult> DeactivateUser(int userId)
         {
-            var success = await _userService.DeactivateUserAsync(userId);
-            if (!success) return NotFound();
+            try
+            {
+                var success = await _userService.DeactivateUserAsync(userId);
+                if (!success)
+                    return NotFound(new { error = "Usuario no encontrado" });
 
-            return Ok(new { success = true, message = "Usuario desactivado" });
+                return Ok(new { success = true, message = "Usuario desactivado" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AdminController] Error desactivando usuario");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
 
         [HttpDelete("user/{userId}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
         public async Task<IActionResult> DeleteUser(int userId)
         {
-            var success = await _userService.DeleteUserAsync(userId);
-            if (!success) return NotFound();
+            try
+            {
+                var success = await _userService.DeleteUserAsync(userId);
+                if (!success)
+                    return NotFound(new { error = "Usuario no encontrado" });
 
-            return Ok(new { success = true, message = "Usuario eliminado" });
+                return Ok(new { success = true, message = "Usuario eliminado" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AdminController] Error eliminando usuario");
+                return StatusCode(500, new { error = "Error interno del servidor" });
+            }
         }
     }
 

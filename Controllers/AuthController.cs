@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using LauncherPhantomServer.Models;
 using LauncherPhantomServer.Services;
-using System.Diagnostics;
 
 namespace LauncherPhantomServer.Controllers
 {
@@ -18,25 +18,31 @@ namespace LauncherPhantomServer.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Login de usuario
+        /// </summary>
         [HttpPost("login")]
+        [EnableRateLimiting("moderate")] // ✅ Rate limiting
+        [ProducesResponseType(200, Type = typeof(AuthResponse))]
+        [ProducesResponseType(400, Type = typeof(AuthResponse))]
+        [ProducesResponseType(500, Type = typeof(AuthResponse))]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try
             {
-                _logger.LogInformation("[AuthController] Login request para usuario: {Username}", request.Username);
-
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("[AuthController] Estado de modelo inválido en login");
-                    return BadRequest(new AuthResponse { Success = false, Error = "Datos inválidos" });
+                    return BadRequest(new AuthResponse 
+                    { 
+                        Success = false, 
+                        Error = "Datos de solicitud inválidos" 
+                    });
                 }
 
                 var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-                _logger.LogInformation("[AuthController] IP del cliente: {ClientIp}", clientIp);
+                _logger.LogInformation($"[AuthController] Login request para: {request.Username} desde {clientIp}");
 
                 var response = await _authService.LoginAsync(request, clientIp);
-
-                _logger.LogInformation("[AuthController] Respuesta de login - Éxito: {Success}", response.Success);
 
                 if (response.Success)
                 {
@@ -44,36 +50,44 @@ namespace LauncherPhantomServer.Controllers
                 }
                 else
                 {
-                    return BadRequest(response);
+                    return Unauthorized(response);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AuthController] Excepción en Login");
-                return StatusCode(500, new AuthResponse 
-                { 
-                    Success = false, 
-                    Error = $"Error del servidor: {ex.Message}" 
+                _logger.LogError(ex, "[AuthController] Error en Login");
+                return StatusCode(500, new AuthResponse
+                {
+                    Success = false,
+                    Error = "Error interno del servidor"
                 });
             }
         }
 
+        /// <summary>
+        /// Registro de nuevo usuario
+        /// </summary>
         [HttpPost("register")]
+        [EnableRateLimiting("strict")] // ✅ Rate limiting estricto
+        [ProducesResponseType(200, Type = typeof(AuthResponse))]
+        [ProducesResponseType(400, Type = typeof(AuthResponse))]
+        [ProducesResponseType(500, Type = typeof(AuthResponse))]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
             {
-                _logger.LogInformation("[AuthController] Register request para usuario: {Username}", request.Username);
-
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("[AuthController] Estado de modelo inválido en register");
-                    return BadRequest(new AuthResponse { Success = false, Error = "Datos inválidos" });
+                    return BadRequest(new AuthResponse
+                    {
+                        Success = false,
+                        Error = "Datos de solicitud inválidos"
+                    });
                 }
 
-                var response = await _authService.RegisterAsync(request);
+                _logger.LogInformation($"[AuthController] Register request para: {request.Username}");
 
-                _logger.LogInformation("[AuthController] Respuesta de register - Éxito: {Success}", response.Success);
+                var response = await _authService.RegisterAsync(request);
 
                 if (response.Success)
                 {
@@ -86,11 +100,11 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AuthController] Excepción en Register");
-                return StatusCode(500, new AuthResponse 
-                { 
-                    Success = false, 
-                    Error = $"Error del servidor: {ex.Message}" 
+                _logger.LogError(ex, "[AuthController] Error en Register");
+                return StatusCode(500, new AuthResponse
+                {
+                    Success = false,
+                    Error = "Error interno del servidor"
                 });
             }
         }
