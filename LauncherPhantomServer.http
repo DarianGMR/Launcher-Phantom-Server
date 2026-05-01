@@ -1,0 +1,6 @@
+@LauncherPhantomServer_HostAddress = http://26.96.149.7:5039
+
+GET {{LauncherPhantomServer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
