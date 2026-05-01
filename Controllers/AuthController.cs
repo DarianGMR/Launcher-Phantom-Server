@@ -22,9 +22,10 @@ namespace LauncherPhantomServer.Controllers
         /// Login de usuario
         /// </summary>
         [HttpPost("login")]
-        [EnableRateLimiting("moderate")] // ✅ Rate limiting
+        [EnableRateLimiting("strict")] // ✅ Rate limiting estricto
         [ProducesResponseType(200, Type = typeof(AuthResponse))]
         [ProducesResponseType(400, Type = typeof(AuthResponse))]
+        [ProducesResponseType(401, Type = typeof(AuthResponse))]
         [ProducesResponseType(500, Type = typeof(AuthResponse))]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
