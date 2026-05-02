@@ -1,4 +1,4 @@
-const API_URL = 'http://26.96.149.7:5000/api';
+const API_URL = 'http://0.0.0.0:5000/api';
 
 // DOM Elements
 const navItems = document.querySelectorAll('.nav-item');

@@ -31,7 +31,7 @@ namespace LauncherPhantomServer.Services
         {
             try
             {
-                // ✅ Validación de entrada
+                //  Validación de entrada
                 var validationResult = ValidateRegisterRequest(request);
                 if (!validationResult.IsValid)
                 {
@@ -41,7 +41,7 @@ namespace LauncherPhantomServer.Services
 
                 _logger.LogInformation($"[AuthService] Intento de registro para usuario: {request.Username}");
 
-                // ✅ Validar username único (usar AsNoTracking para mejor rendimiento)
+                //  Validar username único (usar AsNoTracking para mejor rendimiento)
                 var existingUser = await _context.Users
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.Username == request.Username.ToLower());
@@ -52,7 +52,7 @@ namespace LauncherPhantomServer.Services
                     return new AuthResponse { Success = false, Error = "El usuario ya existe" };
                 }
 
-                // ✅ Validar email único
+                //  Validar email único
                 var existingEmail = await _context.Users
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
@@ -63,7 +63,7 @@ namespace LauncherPhantomServer.Services
                     return new AuthResponse { Success = false, Error = "El email ya está registrado" };
                 }
 
-                // ✅ Crear usuario con contraseña hasheada
+                //  Crear usuario con contraseña hasheada
                 var user = new User
                 {
                     Username = request.Username.ToLower(),
@@ -76,9 +76,9 @@ namespace LauncherPhantomServer.Services
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"[AuthService] ✅ Usuario registrado exitosamente: {request.Username}");
+                _logger.LogInformation($"[AuthService] Usuario registrado exitosamente: {request.Username}");
 
-                // ✅ Limpiar caché de lista de usuarios
+                //  Limpiar caché de lista de usuarios
                 _cacheService.Remove(_cacheService.GetUserListCacheKey());
 
                 return new AuthResponse
@@ -107,7 +107,7 @@ namespace LauncherPhantomServer.Services
         {
             try
             {
-                // ✅ Validación de entrada
+                //  Validación de entrada
                 if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
                 {
                     _logger.LogWarning("[AuthService] Credenciales vacías en login");
@@ -116,7 +116,7 @@ namespace LauncherPhantomServer.Services
 
                 _logger.LogInformation($"[AuthService] Intento de login para: {request.Username} desde IP: {clientIp}");
 
-                // ✅ Buscar usuario (con Include para obtener bans en una sola consulta)
+                //  Buscar usuario (con Include para obtener bans en una sola consulta)
                 var user = await _context.Users
                     .Include(u => u.Bans)
                     .AsNoTracking()
@@ -128,14 +128,14 @@ namespace LauncherPhantomServer.Services
                     return new AuthResponse { Success = false, Error = "Usuario o contraseña incorrectos" };
                 }
 
-                // ✅ Verificar si cuenta está activa
+                //  Verificar si cuenta está activa
                 if (!user.IsActive)
                 {
                     _logger.LogWarning($"[AuthService] Intento de login en cuenta desactivada: {request.Username}");
                     return new AuthResponse { Success = false, Error = "La cuenta ha sido desactivada" };
                 }
 
-                // ✅ Verificar bans activos
+                //  Verificar bans activos
                 var activeBan = user.Bans
                     .FirstOrDefault(b => b.IsPermanent || b.ExpiresAt > DateTime.UtcNow);
 
@@ -153,19 +153,19 @@ namespace LauncherPhantomServer.Services
                     };
                 }
 
-                // ✅ Actualizar último login y IP (usar tracking)
+                //  Actualizar último login y IP (usar tracking)
                 user.LastLogin = DateTime.UtcNow;
                 user.LastIp = clientIp;
                 
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                // ✅ Generar token JWT
+                //  Generar token JWT
                 var token = _jwtService.GenerateToken(user.Id, user.Username, user.Email);
 
-                _logger.LogInformation($"[AuthService] ✅ Login exitoso para: {request.Username}");
+                _logger.LogInformation($"[AuthService] Login exitoso para: {request.Username}");
 
-                // ✅ Cachear usuario durante 24 horas
+                //  Cachear usuario durante 24 horas
                 _cacheService.Set(_cacheService.GetUserCacheKey(user.Id), user, TimeSpan.FromHours(24));
 
                 return new AuthResponse

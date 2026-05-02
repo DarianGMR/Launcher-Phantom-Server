@@ -11,7 +11,7 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Optimizaciones de rendimiento
+//  Optimizaciones de rendimiento
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 {
     options.Level = CompressionLevel.Optimal;
@@ -49,7 +49,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ✅ Database con pooling optimizado
+//  Database con pooling optimizado
 builder.Services.AddDbContext<DatabaseContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -65,7 +65,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<BanService>();
 
-// ✅ Caching distribuido en memoria
+//  Caching distribuido en memoria
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<CacheService>();
 
@@ -113,7 +113,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ✅ Rate limiting CORREGIDO - Define las políticas ANTES de usar AddRateLimiter
+//  Rate limiting CORREGIDO - Define las políticas ANTES de usar AddRateLimiter
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -145,19 +145,19 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// ✅ Inicializar base de datos
+//  Inicializar base de datos
 try
 {
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
         db.Database.EnsureCreated();
-        Console.WriteLine("[DATABASE] ✅ Base de datos inicializada correctamente");
+        Console.WriteLine("[DATABASE] Base de datos inicializada correctamente");
     }
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[DATABASE] ❌ Error al inicializar BD: {ex.Message}");
+    Console.WriteLine($"[DATABASE] Error al inicializar BD: {ex.Message}");
     throw;
 }
 
@@ -166,16 +166,15 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    Console.WriteLine("[SWAGGER] ✅ Swagger disponible en /swagger");
 }
 
-// ✅ Usar compresión de respuestas
+//  Usar compresión de respuestas
 app.UseResponseCompression();
 
 app.UseRouting();
 app.UseCors("AllowPhantomClient");
 
-// ✅ Aplicar rate limiting
+//  Aplicar rate limiting
 app.UseRateLimiter();
 
 Console.WriteLine("[MIDDLEWARE] Aplicando middleware de seguridad y autenticación...");
@@ -199,15 +198,15 @@ app.Urls.Add(urls);
 
 // Banner de inicio
 Console.WriteLine("\n");
-Console.WriteLine("╔════════════════════════════════════════════╗");
-Console.WriteLine("║  🚀 LAUNCHER PHANTOM SERVER - OPTIMIZADO  ║");
-Console.WriteLine("╠════════════════════════════════════════════╣");
-Console.WriteLine($"║ 🌐 URL: {urls.PadRight(42)}║");
-Console.WriteLine($"║ 🏠 Local: http://localhost:{port}         {new string(' ', Math.Max(0, 5 - port.ToString().Length))}║");
-Console.WriteLine($"║ 🏥 Health: http://localhost:{port}/api/launcher/health");
-Console.WriteLine($"║ 📚 Swagger: http://localhost:{port}/swagger");
-Console.WriteLine("║ ✅ Servidor iniciado correctamente          ║");
-Console.WriteLine("╚════════════════════════════════════════════╝\n");
+Console.WriteLine("╔════════════════════════════════════════════════════╗");
+Console.WriteLine("║        LAUNCHER PHANTOM SERVER - OPTIMIZADO        ║");
+Console.WriteLine("╠════════════════════════════════════════════════════╣");
+Console.WriteLine($"║  URL: {urls.PadRight(45)}║");
+Console.WriteLine($"║  Local: http://0.0.0.0:{port}         {new string(' ', Math.Max(0, 5 - port.ToString().Length))}              ║");
+Console.WriteLine($"║  Health: http://0.0.0.0:{port}/api/launcher/health   ║");
+Console.WriteLine($"║  Swagger: http://localhost:{port}/swagger            ║");
+Console.WriteLine("║  Servidor iniciado correctamente                   ║");
+Console.WriteLine("╚════════════════════════════════════════════════════╝\n");
 
 try
 {
@@ -215,6 +214,6 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[FATAL] ❌ Error crítico: {ex.Message}");
+    Console.WriteLine($"[FATAL] Error crítico: {ex.Message}");
     throw;
 }

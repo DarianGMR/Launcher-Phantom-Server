@@ -22,7 +22,7 @@ namespace LauncherPhantomServer.Controllers
         /// Login de usuario
         /// </summary>
         [HttpPost("login")]
-        [EnableRateLimiting("strict")] // ✅ Rate limiting estricto
+        [EnableRateLimiting("strict")] // Rate limiting estricto
         [ProducesResponseType(200, Type = typeof(AuthResponse))]
         [ProducesResponseType(400, Type = typeof(AuthResponse))]
         [ProducesResponseType(401, Type = typeof(AuthResponse))]
@@ -69,7 +69,7 @@ namespace LauncherPhantomServer.Controllers
         /// Registro de nuevo usuario
         /// </summary>
         [HttpPost("register")]
-        [EnableRateLimiting("strict")] // ✅ Rate limiting estricto
+        [EnableRateLimiting("strict")] // Rate limiting estricto
         [ProducesResponseType(200, Type = typeof(AuthResponse))]
         [ProducesResponseType(400, Type = typeof(AuthResponse))]
         [ProducesResponseType(500, Type = typeof(AuthResponse))]

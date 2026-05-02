@@ -14,7 +14,7 @@ namespace LauncherPhantomServer.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // ✅ Configuración optimizada de User
+            // Configuración optimizada de User
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -37,7 +37,7 @@ namespace LauncherPhantomServer.Data
                 entity.Property(e => e.IsActive)
                     .HasDefaultValue(true);
 
-                // ✅ Índices para búsquedas frecuentes
+                // Índices para búsquedas frecuentes
                 entity.HasIndex(e => e.Username).IsUnique();
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.HasIndex(e => e.IsActive); // Para filtros de usuarios activos
@@ -50,7 +50,7 @@ namespace LauncherPhantomServer.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ✅ Configuración optimizada de Ban
+            // Configuración optimizada de Ban
             modelBuilder.Entity<Ban>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -70,7 +70,7 @@ namespace LauncherPhantomServer.Data
                 entity.Property(e => e.IsPermanent)
                     .HasDefaultValue(false);
 
-                // ✅ Índices críticos para bans
+                // Índices críticos para bans
                 entity.HasIndex(b => b.IpAddress);
                 entity.HasIndex(b => b.UserId);
                 entity.HasIndex(b => new { b.IsPermanent, b.ExpiresAt }); // Índice compuesto para búsquedas de bans activos

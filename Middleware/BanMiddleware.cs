@@ -7,7 +7,7 @@ namespace LauncherPhantomServer.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<BanMiddleware> _logger;
 
-        // ✅ Rutas que no requieren validación de ban
+        // Rutas que no requieren validación de ban
         private static readonly HashSet<string> ExcludedPaths = new(StringComparer.OrdinalIgnoreCase)
         {
             "/api/auth/login",
@@ -33,7 +33,7 @@ namespace LauncherPhantomServer.Middleware
 
             _logger.LogDebug($"[BanMiddleware] Solicitud de {clientIp} a {path}");
 
-            // ✅ Skip validation para rutas excluidas
+            // Skip validation para rutas excluidas
             if (IsExcludedPath(path))
             {
                 await _next(context);
@@ -42,11 +42,11 @@ namespace LauncherPhantomServer.Middleware
 
             try
             {
-                // ✅ Validar ban por IP
+                // Validar ban por IP
                 var ban = await banService.GetBanByIpAsync(clientIp);
                 if (ban != null)
                 {
-                    _logger.LogWarning($"[BanMiddleware] ⛔ IP baneada detectada: {clientIp}");
+                    _logger.LogWarning($"[BanMiddleware] IP baneada detectada: {clientIp}");
                     
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     context.Response.ContentType = "application/json";
@@ -77,7 +77,7 @@ namespace LauncherPhantomServer.Middleware
 
         private string ExtractClientIp(HttpContext context)
         {
-            // ✅ Manejar X-Forwarded-For para proxies
+            // Manejar X-Forwarded-For para proxies
             if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
             {
                 var ip = forwardedFor.ToString().Split(',').First().Trim();

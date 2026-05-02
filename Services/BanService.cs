@@ -43,7 +43,7 @@ namespace LauncherPhantomServer.Services
 
                 _context.Bans.Add(ban);
 
-                // ✅ Desactivar usuario en la misma operación
+                //  Desactivar usuario en la misma operación
                 var user = await _context.Users.FindAsync(userId);
                 if (user != null)
                 {
@@ -54,9 +54,9 @@ namespace LauncherPhantomServer.Services
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"[BanService] ✅ Usuario {userId} baneado por: {reason}");
+                _logger.LogInformation($"[BanService] Usuario {userId} baneado por: {reason}");
                 
-                // ✅ Limpiar caché de bans
+                //  Limpiar caché de bans
                 _cacheService.Remove(_cacheService.GetActiveBansCacheKey());
 
                 return true;
@@ -84,7 +84,7 @@ namespace LauncherPhantomServer.Services
 
                 _context.Bans.Remove(ban);
 
-                // ✅ Reactivar usuario si no tiene otros bans activos
+                //  Reactivar usuario si no tiene otros bans activos
                 var user = await _context.Users.FindAsync(ban.UserId);
                 if (user != null)
                 {
@@ -102,7 +102,7 @@ namespace LauncherPhantomServer.Services
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"[BanService] ✅ Ban removido: {banId}");
+                _logger.LogInformation($"[BanService] Ban removido: {banId}");
                 _cacheService.Remove(_cacheService.GetActiveBansCacheKey());
 
                 return true;
@@ -129,14 +129,14 @@ namespace LauncherPhantomServer.Services
                     return cachedBans;
                 }
 
-                // ✅ Índice compuesto mejora esta consulta significativamente
+                //  Índice compuesto mejora esta consulta significativamente
                 var activeBans = await _context.Bans
                     .Where(b => b.IsPermanent || b.ExpiresAt > DateTime.UtcNow)
                     .Include(b => b.User)
                     .AsNoTracking()
                     .ToListAsync();
 
-                // ✅ Cachear por 1 minuto
+                //  Cachear por 1 minuto
                 _cacheService.Set(cacheKey, activeBans, TimeSpan.FromMinutes(1));
 
                 return activeBans;
@@ -177,7 +177,7 @@ namespace LauncherPhantomServer.Services
                 if (string.IsNullOrWhiteSpace(ipAddress))
                     return null;
 
-                // ✅ Índice en IpAddress mejora esta búsqueda
+                //  Índice en IpAddress mejora esta búsqueda
                 return await _context.Bans
                     .Where(b => b.IpAddress == ipAddress.Trim() && (b.IsPermanent || b.ExpiresAt > DateTime.UtcNow))
                     .AsNoTracking()
@@ -207,7 +207,7 @@ namespace LauncherPhantomServer.Services
                 _context.Bans.RemoveRange(expiredBans);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"[BanService] ✅ Se limpiaron {expiredBans.Count} bans expirados");
+                _logger.LogInformation($"[BanService] Se limpiaron {expiredBans.Count} bans expirados");
                 _cacheService.Remove(_cacheService.GetActiveBansCacheKey());
 
                 return expiredBans.Count;

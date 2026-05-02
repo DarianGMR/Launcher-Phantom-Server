@@ -46,7 +46,7 @@ namespace LauncherPhantomServer.Services
                 );
 
                 var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-                _logger.LogInformation($"[JwtService] ✅ Token generado para usuario: {username}");
+                _logger.LogInformation($"[JwtService] Token generado para usuario: {username}");
 
                 return tokenString;
             }

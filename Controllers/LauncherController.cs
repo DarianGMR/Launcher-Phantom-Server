@@ -57,12 +57,12 @@ namespace LauncherPhantomServer.Controllers
                     required = _config.GetValue<bool>("App:RequiredUpdate", false),
                     changes = new[]
                     {
-                        "✅ Optimización de base de datos",
-                        "✅ Caché de memoria implementado",
-                        "✅ Rate limiting agregado",
-                        "✅ Validación completa de entrada",
-                        "✅ Compresión de respuestas",
-                        "✅ Mejor manejo de errores"
+                        "Optimización de base de datos",
+                        "Caché de memoria implementado",
+                        "Rate limiting agregado",
+                        "Validación completa de entrada",
+                        "Compresión de respuestas",
+                        "Mejor manejo de errores"
                     }
                 });
             }

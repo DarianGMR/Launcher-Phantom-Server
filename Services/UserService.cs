@@ -32,13 +32,13 @@ namespace LauncherPhantomServer.Services
                     return cachedUsers;
                 }
 
-                // ✅ Usar proyección para obtener solo datos necesarios
+                //  Usar proyección para obtener solo datos necesarios
                 var users = await _context.Users
                     .Include(u => u.Bans)
                     .AsNoTracking()
                     .ToListAsync();
 
-                // ✅ Cachear por 5 minutos
+                //  Cachear por 5 minutos
                 _cacheService.Set(cacheKey, users, TimeSpan.FromMinutes(5));
 
                 return users;
@@ -100,11 +100,11 @@ namespace LauncherPhantomServer.Services
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                // ✅ Limpiar caché
+                //  Limpiar caché
                 _cacheService.Remove(_cacheService.GetUserCacheKey(user.Id));
                 _cacheService.Remove(_cacheService.GetUserListCacheKey());
 
-                _logger.LogInformation($"[UserService] ✅ Usuario {user.Id} actualizado");
+                _logger.LogInformation($"[UserService] Usuario {user.Id} actualizado");
 
                 return true;
             }
@@ -135,7 +135,7 @@ namespace LauncherPhantomServer.Services
                 _cacheService.Remove(_cacheService.GetUserCacheKey(id));
                 _cacheService.Remove(_cacheService.GetUserListCacheKey());
 
-                _logger.LogInformation($"[UserService] ✅ Usuario {id} eliminado");
+                _logger.LogInformation($"[UserService] Usuario {id} eliminado");
 
                 return true;
             }
@@ -167,7 +167,7 @@ namespace LauncherPhantomServer.Services
                 _cacheService.Remove(_cacheService.GetUserCacheKey(id));
                 _cacheService.Remove(_cacheService.GetUserListCacheKey());
 
-                _logger.LogInformation($"[UserService] ✅ Usuario {id} desactivado");
+                _logger.LogInformation($"[UserService] Usuario {id} desactivado");
 
                 return true;
             }
