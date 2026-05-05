@@ -18,11 +18,8 @@ namespace LauncherPhantomServer.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Login de usuario
-        /// </summary>
         [HttpPost("login")]
-        [EnableRateLimiting("strict")] // Rate limiting estricto
+        [EnableRateLimiting("strict")]
         [ProducesResponseType(200, Type = typeof(AuthResponse))]
         [ProducesResponseType(400, Type = typeof(AuthResponse))]
         [ProducesResponseType(401, Type = typeof(AuthResponse))]
@@ -41,22 +38,20 @@ namespace LauncherPhantomServer.Controllers
                 }
 
                 var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-                _logger.LogInformation($"[AuthController] Login request para: {request.Username} desde {clientIp}");
+                _logger.LogInformation($"[API] POST /api/auth/login - Usuario: {request.Username} - IP: {clientIp}");
 
                 var response = await _authService.LoginAsync(request, clientIp);
 
-                if (response.Success)
+                if (!response.Success)
                 {
-                    return Ok(response);
+                    _logger.LogInformation($"[API] Login fallido para: {request.Username}");
                 }
-                else
-                {
-                    return Unauthorized(response);
-                }
+
+                return response.Success ? Ok(response) : Unauthorized(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AuthController] Error en Login");
+                _logger.LogError(ex, "[API] Error en POST /api/auth/login");
                 return StatusCode(500, new AuthResponse
                 {
                     Success = false,
@@ -65,11 +60,8 @@ namespace LauncherPhantomServer.Controllers
             }
         }
 
-        /// <summary>
-        /// Registro de nuevo usuario
-        /// </summary>
         [HttpPost("register")]
-        [EnableRateLimiting("strict")] // Rate limiting estricto
+        [EnableRateLimiting("strict")]
         [ProducesResponseType(200, Type = typeof(AuthResponse))]
         [ProducesResponseType(400, Type = typeof(AuthResponse))]
         [ProducesResponseType(500, Type = typeof(AuthResponse))]
@@ -86,22 +78,20 @@ namespace LauncherPhantomServer.Controllers
                     });
                 }
 
-                _logger.LogInformation($"[AuthController] Register request para: {request.Username}");
+                _logger.LogInformation($"[API] POST /api/auth/register - Usuario: {request.Username}");
 
                 var response = await _authService.RegisterAsync(request);
 
-                if (response.Success)
+                if (!response.Success)
                 {
-                    return Ok(response);
+                    _logger.LogInformation($"[API] Registro fallido para: {request.Username}");
                 }
-                else
-                {
-                    return BadRequest(response);
-                }
+
+                return response.Success ? Ok(response) : BadRequest(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AuthController] Error en Register");
+                _logger.LogError(ex, "[API] Error en POST /api/auth/register");
                 return StatusCode(500, new AuthResponse
                 {
                     Success = false,

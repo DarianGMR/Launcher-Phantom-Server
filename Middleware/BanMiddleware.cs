@@ -7,7 +7,6 @@ namespace LauncherPhantomServer.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<BanMiddleware> _logger;
 
-        // Rutas que no requieren validación de ban
         private static readonly HashSet<string> ExcludedPaths = new(StringComparer.OrdinalIgnoreCase)
         {
             "/api/auth/login",
@@ -31,9 +30,6 @@ namespace LauncherPhantomServer.Middleware
             var clientIp = ExtractClientIp(context);
             var path = context.Request.Path.Value ?? "";
 
-            _logger.LogDebug($"[BanMiddleware] Solicitud de {clientIp} a {path}");
-
-            // Skip validation para rutas excluidas
             if (IsExcludedPath(path))
             {
                 await _next(context);
@@ -42,11 +38,10 @@ namespace LauncherPhantomServer.Middleware
 
             try
             {
-                // Validar ban por IP
                 var ban = await banService.GetBanByIpAsync(clientIp);
                 if (ban != null)
                 {
-                    _logger.LogWarning($"[BanMiddleware] IP baneada detectada: {clientIp}");
+                    _logger.LogWarning($"[SECURITY] IP baneada bloqueada: {clientIp}");
                     
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     context.Response.ContentType = "application/json";
@@ -68,8 +63,7 @@ namespace LauncherPhantomServer.Middleware
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[BanMiddleware] Error validando ban");
-                // Continuar en lugar de fallar
+                _logger.LogError(ex, "[SECURITY] Error validando ban");
             }
 
             await _next(context);
@@ -77,7 +71,6 @@ namespace LauncherPhantomServer.Middleware
 
         private string ExtractClientIp(HttpContext context)
         {
-            // Manejar X-Forwarded-For para proxies
             if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
             {
                 var ip = forwardedFor.ToString().Split(',').First().Trim();

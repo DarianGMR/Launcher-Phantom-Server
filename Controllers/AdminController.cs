@@ -31,6 +31,8 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
+                _logger.LogInformation("[API] GET /api/admin/users");
+                
                 var users = await _userService.GetAllUsersAsync();
                 
                 var result = users.Select(u => new
@@ -49,7 +51,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AdminController] Error obteniendo usuarios");
+                _logger.LogError(ex, "[API] Error en GET /api/admin/users");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -62,6 +64,8 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
+                _logger.LogInformation("[API] GET /api/admin/users/{id}", id);
+                
                 var user = await _userService.GetUserByIdAsync(id);
                 if (user == null)
                     return NotFound(new { error = "Usuario no encontrado" });
@@ -87,7 +91,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"[AdminController] Error obteniendo usuario {id}");
+                _logger.LogError(ex, "[API] Error en GET /api/admin/users/{id}", id);
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -99,6 +103,8 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
+                _logger.LogInformation("[API] GET /api/admin/bans");
+                
                 var bans = await _banService.GetActiveBansAsync();
 
                 var result = bans.Select(b => new
@@ -117,7 +123,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AdminController] Error obteniendo bans");
+                _logger.LogError(ex, "[API] Error en GET /api/admin/bans");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -136,6 +142,8 @@ namespace LauncherPhantomServer.Controllers
 
                 if (request.UserId <= 0 || string.IsNullOrWhiteSpace(request.Reason))
                     return BadRequest(new { error = "Datos de ban inválidos" });
+
+                _logger.LogInformation("[API] POST /api/admin/ban - Usuario: {userId} - Razón: {reason}", request.UserId, request.Reason);
 
                 var user = await _userService.GetUserByIdAsync(request.UserId);
                 if (user == null)
@@ -156,7 +164,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AdminController] Error baneando usuario");
+                _logger.LogError(ex, "[API] Error en POST /api/admin/ban");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -169,6 +177,8 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
+                _logger.LogInformation("[API] DELETE /api/admin/unban/{banId}", banId);
+                
                 var success = await _banService.UnbanUserAsync(banId);
                 if (!success)
                     return NotFound(new { error = "Ban no encontrado" });
@@ -177,7 +187,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AdminController] Error desbaneando usuario");
+                _logger.LogError(ex, "[API] Error en DELETE /api/admin/unban/{banId}", banId);
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -190,6 +200,8 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
+                _logger.LogInformation("[API] POST /api/admin/deactivate/{userId}", userId);
+                
                 var success = await _userService.DeactivateUserAsync(userId);
                 if (!success)
                     return NotFound(new { error = "Usuario no encontrado" });
@@ -198,7 +210,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AdminController] Error desactivando usuario");
+                _logger.LogError(ex, "[API] Error en POST /api/admin/deactivate/{userId}", userId);
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -211,6 +223,8 @@ namespace LauncherPhantomServer.Controllers
         {
             try
             {
+                _logger.LogInformation("[API] DELETE /api/admin/user/{userId}", userId);
+                
                 var success = await _userService.DeleteUserAsync(userId);
                 if (!success)
                     return NotFound(new { error = "Usuario no encontrado" });
@@ -219,7 +233,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[AdminController] Error eliminando usuario");
+                _logger.LogError(ex, "[API] Error en DELETE /api/admin/user/{userId}", userId);
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }

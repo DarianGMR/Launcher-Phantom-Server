@@ -11,7 +11,7 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//  Optimizaciones de rendimiento
+// Optimizaciones de rendimiento
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 {
     options.Level = CompressionLevel.Optimal;
@@ -49,7 +49,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-//  Database con pooling optimizado
+// Database con pooling optimizado
 builder.Services.AddDbContext<DatabaseContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -64,22 +64,21 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<BanService>();
+builder.Services.AddScoped<UpdateService>();
 
-//  Caching distribuido en memoria
+// Caching distribuido en memoria
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<CacheService>();
 
-// Logging mejorado
+// Logging mejorado - SOLO LOGS IMPORTANTES
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
-if (!builder.Environment.IsDevelopment())
+builder.Logging.SetMinimumLevel(LogLevel.Warning);
+
+if (builder.Environment.IsDevelopment())
 {
-    builder.Logging.SetMinimumLevel(LogLevel.Warning);
-}
-else
-{
-    builder.Logging.SetMinimumLevel(LogLevel.Information);
+    builder.Logging.SetMinimumLevel(LogLevel.Debug);
 }
 
 // JWT Configuration
@@ -113,7 +112,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//  Rate limiting CORREGIDO - Define las políticas ANTES de usar AddRateLimiter
+// Rate limiting
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -145,7 +144,7 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-//  Inicializar base de datos
+// Inicializar base de datos y crear carpeta Update
 try
 {
     using (var scope = app.Services.CreateScope())
@@ -153,11 +152,15 @@ try
         var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
         db.Database.EnsureCreated();
         Console.WriteLine("[DATABASE] Base de datos inicializada correctamente");
+        
+        // Crear carpeta Update y archivo update.json
+        var updateService = scope.ServiceProvider.GetRequiredService<UpdateService>();
+        updateService.InitializeUpdateFolder();
     }
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[DATABASE] Error al inicializar BD: {ex.Message}");
+    Console.WriteLine($"[ERROR] Error al inicializar BD: {ex.Message}");
     throw;
 }
 
@@ -168,16 +171,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-//  Usar compresión de respuestas
+// Usar compresión de respuestas
 app.UseResponseCompression();
 
 app.UseRouting();
 app.UseCors("AllowPhantomClient");
 
-//  Aplicar rate limiting
+// Aplicar rate limiting
 app.UseRateLimiter();
 
-Console.WriteLine("[MIDDLEWARE] Aplicando middleware de seguridad y autenticación...");
+Console.WriteLine("[INIT] Aplicando middleware de seguridad y autenticación...");
 
 // Ban Middleware
 app.UseMiddleware<BanMiddleware>();
@@ -214,6 +217,6 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[FATAL] Error crítico: {ex.Message}");
+    Console.WriteLine($"[ERROR] Error crítico: {ex.Message}");
     throw;
 }
