@@ -189,6 +189,23 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Configurar StaticFiles para servir desde la carpeta Update en la raíz
+var updatePath = Path.Combine(Directory.GetCurrentDirectory(), "Update");
+if (!Directory.Exists(updatePath))
+{
+    Directory.CreateDirectory(updatePath);
+    Console.WriteLine($"[STATIC] Carpeta Update creada: {updatePath}");
+}
+
+var staticFileOptions = new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(updatePath),
+    RequestPath = "/update"
+};
+app.UseStaticFiles(staticFileOptions);
+
+// También servir archivos desde wwwroot (por defecto)
 app.UseStaticFiles();
 
 // Configuration

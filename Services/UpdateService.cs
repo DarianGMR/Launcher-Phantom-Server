@@ -6,12 +6,14 @@ namespace LauncherPhantomServer.Services
     public class UpdateService
     {
         private readonly ILogger<UpdateService> _logger;
-        private const string UPDATE_FOLDER = "Update";
+        private readonly string UPDATE_FOLDER;
         private const string UPDATE_FILE = "update.json";
 
         public UpdateService(ILogger<UpdateService> logger)
         {
             _logger = logger;
+            // Carpeta Update en la raíz del proyecto, no en wwwroot
+            UPDATE_FOLDER = Path.Combine(Directory.GetCurrentDirectory(), "Update");
         }
 
         public void InitializeUpdateFolder()
@@ -21,7 +23,7 @@ namespace LauncherPhantomServer.Services
                 if (!Directory.Exists(UPDATE_FOLDER))
                 {
                     Directory.CreateDirectory(UPDATE_FOLDER);
-                    _logger.LogInformation("[UpdateService] Carpeta Update creada");
+                    _logger.LogInformation($"[UpdateService] Carpeta Update creada en: {UPDATE_FOLDER}");
                 }
 
                 var updateJsonPath = Path.Combine(UPDATE_FOLDER, UPDATE_FILE);
@@ -32,19 +34,21 @@ namespace LauncherPhantomServer.Services
                     {
                         Version = "0.1.0",
                         DownloadUrl = "http://localhost:5000/update/LauncherPhantom.exe",
-                        Changes = new[] { "Example 1",
-                        "Example 2",
-                        "Example 3" },
+                        Changes = new[] { "EXAMPLE 1",
+                        "EXAMPLE 2",
+                        "EXAMPLE 3",
+                        "EXAMPLE 4",
+                        "EXAMPLE 5", },
                         Required = false
                     };
 
                     var json = JsonSerializer.Serialize(defaultUpdate, new JsonSerializerOptions { WriteIndented = true });
                     File.WriteAllText(updateJsonPath, json);
-                    _logger.LogInformation("[UpdateService] archivo update.json creado");
+                    _logger.LogInformation($"[UpdateService] Archivo update.json creado en: {updateJsonPath}");
                 }
                 else
                 {
-                    _logger.LogInformation("[UpdateService] archivo update.json ya existe");
+                    _logger.LogInformation($"[UpdateService] Archivo update.json ya existe en: {updateJsonPath}");
                 }
             }
             catch (Exception ex)
@@ -62,7 +66,7 @@ namespace LauncherPhantomServer.Services
                 
                 if (!File.Exists(updateJsonPath))
                 {
-                    _logger.LogWarning("[UpdateService] Archivo update.json no encontrado");
+                    _logger.LogWarning($"[UpdateService] Archivo update.json no encontrado en: {updateJsonPath}");
                     return null;
                 }
 
@@ -96,7 +100,7 @@ namespace LauncherPhantomServer.Services
                 
                 await File.WriteAllTextAsync(updateJsonPath, json);
                 
-                _logger.LogInformation($"[UpdateService] Versión actualizada a {version}");
+                _logger.LogInformation($"[UpdateService] Versión actualizada a {version} en: {updateJsonPath}");
                 return true;
             }
             catch (Exception ex)
@@ -104,6 +108,11 @@ namespace LauncherPhantomServer.Services
                 _logger.LogError(ex, "[UpdateService] Error actualizando versión");
                 return false;
             }
+        }
+
+        public string GetUpdateFolderPath()
+        {
+            return UPDATE_FOLDER;
         }
     }
 
