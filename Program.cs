@@ -23,6 +23,14 @@ builder.Services.AddResponseCompression(options =>
     options.EnableForHttps = true;
 });
 
+// Configurar opciones HTTP para mejor manejo de conexiones lentas
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 104857600; // 100 MB
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(60);
+    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
+});
+
 // Add services
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
@@ -49,7 +57,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Database con pooling optimizado
+// Database con pooling optimizado para manejar muchas conexiones
 builder.Services.AddDbContext<DatabaseContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -70,16 +78,20 @@ builder.Services.AddScoped<UpdateService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<CacheService>();
 
-// Logging mejorado - SOLO LOGS IMPORTANTES
+// LOGGING CON FORMATO PERSONALIZADO - SOLUCIÓN CORRECTA
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Logging.SetMinimumLevel(LogLevel.Debug);
-}
+// Agregar custom formatter
+builder.Services.AddSingleton<SimpleLoggerProvider>();
+builder.Logging.AddProvider(new SimpleLoggerProvider());
+
+// Establecer nivel de log - SIEMPRE Debug para capturar todo
+// La configuración real viene de appsettings.json
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+// Cargar configuración de logging desde appsettings
+var config = builder.Configuration.GetSection("Logging");
+builder.Logging.AddConfiguration(config);
 
 // JWT Configuration
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -112,12 +124,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Rate limiting
+// Rate limiting - Protección contra abuso
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     
-    // Política estricta (5 requests por minuto)
+    // Política estricta para login/register (5 requests por minuto)
     options.AddPolicy("strict", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -226,6 +238,7 @@ Console.WriteLine($"║  Local: http://0.0.0.0:{port}         {new string(' ', M
 Console.WriteLine($"║  Health: http://0.0.0.0:{port}/api/launcher/health   ║");
 Console.WriteLine($"║  Swagger: http://localhost:{port}/swagger            ║");
 Console.WriteLine("║  Servidor iniciado correctamente                   ║");
+Console.WriteLine("║  Modo: " + (app.Environment.IsDevelopment() ? "DESARROLLO" : "PRODUCCIÓN") + new string(' ', 26) + "║");
 Console.WriteLine("╚════════════════════════════════════════════════════╝\n");
 
 try
