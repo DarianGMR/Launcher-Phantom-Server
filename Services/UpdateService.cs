@@ -8,6 +8,7 @@ namespace LauncherPhantomServer.Services
         private readonly ILogger<UpdateService> _logger;
         private readonly string UPDATE_FOLDER;
         private const string UPDATE_FILE = "update.json";
+        private readonly SemaphoreSlim _fileLock = new(1, 1);
 
         public UpdateService(ILogger<UpdateService> logger)
         {
@@ -34,11 +35,13 @@ namespace LauncherPhantomServer.Services
                     {
                         Version = "0.1.0",
                         DownloadUrl = "http://localhost:5000/update/LauncherPhantom.exe",
-                        Changes = new[] { "EXAMPLE 1",
-                        "EXAMPLE 2",
-                        "EXAMPLE 3",
-                        "EXAMPLE 4",
-                        "EXAMPLE 5", },
+                        Changes = new[] { 
+                            "EXAMPLE 1",
+                            "EXAMPLE 2",
+                            "EXAMPLE 3",
+                            "EXAMPLE 4",
+                            "EXAMPLE 5"
+                        },
                         Required = false
                     };
 
@@ -48,12 +51,12 @@ namespace LauncherPhantomServer.Services
                 }
                 else
                 {
-                    _logger.LogInformation($"[UpdateService] Archivo update.json ya existe en: {updateJsonPath}");
+                    _logger.LogDebug($"[UpdateService] Archivo update.json ya existe");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UpdateService] Error inicializando carpeta Update");
+                _logger.LogError(ex, "[UpdateService] ERROR inicializando carpeta Update");
                 throw;
             }
         }
@@ -66,19 +69,32 @@ namespace LauncherPhantomServer.Services
                 
                 if (!File.Exists(updateJsonPath))
                 {
-                    _logger.LogWarning($"[UpdateService] Archivo update.json no encontrado en: {updateJsonPath}");
+                    _logger.LogWarning($"[UpdateService] Archivo update.json no encontrado");
                     return null;
                 }
 
-                var json = await File.ReadAllTextAsync(updateJsonPath);
-                var updateInfo = JsonSerializer.Deserialize<UpdateInfo>(json);
-                
-                _logger.LogInformation($"[UpdateService] Update info obtenido - Version: {updateInfo?.Version}");
-                return updateInfo;
+                // Lock para evitar lectura concurrente mientras se escribe
+                await _fileLock.WaitAsync();
+                try
+                {
+                    var json = await File.ReadAllTextAsync(updateJsonPath);
+                    var updateInfo = JsonSerializer.Deserialize<UpdateInfo>(json);
+                    
+                    if (updateInfo != null)
+                    {
+                        _logger.LogDebug($"[UpdateService] Versión actual: {updateInfo.Version}");
+                    }
+                    
+                    return updateInfo;
+                }
+                finally
+                {
+                    _fileLock.Release();
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UpdateService] Error leyendo update.json");
+                _logger.LogError(ex, "[UpdateService] ERROR leyendo update.json");
                 return null;
             }
         }
@@ -87,25 +103,39 @@ namespace LauncherPhantomServer.Services
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(version))
+                {
+                    _logger.LogWarning("[UpdateService] Versión vacía");
+                    return false;
+                }
+
                 var updateInfo = new UpdateInfo
                 {
                     Version = version,
                     DownloadUrl = $"http://localhost:5000/update/LauncherPhantom.exe",
-                    Changes = changes,
+                    Changes = changes ?? Array.Empty<string>(),
                     Required = required
                 };
 
                 var updateJsonPath = Path.Combine(UPDATE_FOLDER, UPDATE_FILE);
                 var json = JsonSerializer.Serialize(updateInfo, new JsonSerializerOptions { WriteIndented = true });
                 
-                await File.WriteAllTextAsync(updateJsonPath, json);
-                
-                _logger.LogInformation($"[UpdateService] Versión actualizada a {version} en: {updateJsonPath}");
-                return true;
+                // Lock para evitar escritura concurrente
+                await _fileLock.WaitAsync();
+                try
+                {
+                    await File.WriteAllTextAsync(updateJsonPath, json);
+                    _logger.LogInformation($"[UpdateService] Versión actualizada a {version}");
+                    return true;
+                }
+                finally
+                {
+                    _fileLock.Release();
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UpdateService] Error actualizando versión");
+                _logger.LogError(ex, "[UpdateService] ERROR actualizando versión");
                 return false;
             }
         }
@@ -119,7 +149,7 @@ namespace LauncherPhantomServer.Services
     public class UpdateInfo
     {
         public string Version { get; set; } = "0.1.0";
-        public string DownloadUrl { get; set; } = "";
+        public string DownloadUrl { get; set; } = string.Empty;
         public string[] Changes { get; set; } = Array.Empty<string>();
         public bool Required { get; set; } = false;
     }

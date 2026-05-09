@@ -29,23 +29,26 @@ namespace LauncherPhantomServer.Services
 
                 if (cachedUsers != null)
                 {
+                    _logger.LogDebug("[UserService] Usuarios obtenidos del caché");
                     return cachedUsers;
                 }
 
-                //  Usar proyección para obtener solo datos necesarios
+                // Usar proyección para obtener solo datos necesarios
                 var users = await _context.Users
                     .Include(u => u.Bans)
                     .AsNoTracking()
                     .ToListAsync();
 
-                //  Cachear por 5 minutos
+                // Cachear por 5 minutos
                 _cacheService.Set(cacheKey, users, TimeSpan.FromMinutes(5));
+
+                _logger.LogDebug($"[UserService] {users.Count} usuarios cargados de BD");
 
                 return users;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UserService] Error obteniendo usuarios");
+                _logger.LogError(ex, "[UserService] ERROR obteniendo usuarios");
                 return new List<User>();
             }
         }
@@ -62,6 +65,7 @@ namespace LauncherPhantomServer.Services
 
                 if (cachedUser != null)
                 {
+                    _logger.LogDebug($"[UserService] Usuario {id} obtenido del caché");
                     return cachedUser;
                 }
 
@@ -79,7 +83,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"[UserService] Error obteniendo usuario {id}");
+                _logger.LogError(ex, $"[UserService] ERROR obteniendo usuario {id}");
                 return null;
             }
         }
@@ -100,7 +104,7 @@ namespace LauncherPhantomServer.Services
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                //  Limpiar caché
+                // Limpiar caché
                 _cacheService.Remove(_cacheService.GetUserCacheKey(user.Id));
                 _cacheService.Remove(_cacheService.GetUserListCacheKey());
 
@@ -110,7 +114,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UserService] Error actualizando usuario");
+                _logger.LogError(ex, "[UserService] ERROR actualizando usuario");
                 return false;
             }
         }
@@ -141,7 +145,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UserService] Error eliminando usuario");
+                _logger.LogError(ex, "[UserService] ERROR eliminando usuario");
                 return false;
             }
         }
@@ -173,7 +177,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UserService] Error desactivando usuario");
+                _logger.LogError(ex, "[UserService] ERROR desactivando usuario");
                 return false;
             }
         }
@@ -192,7 +196,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UserService] Error obteniendo usuarios activos");
+                _logger.LogError(ex, "[UserService] ERROR obteniendo usuarios activos");
                 return new List<User>();
             }
         }

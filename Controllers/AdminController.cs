@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LauncherPhantomServer.Models;
 using LauncherPhantomServer.Services;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LauncherPhantomServer.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [EnableRateLimiting("moderate")]
     public class AdminController : ControllerBase
     {
         private readonly UserService _userService;
@@ -27,6 +29,7 @@ namespace LauncherPhantomServer.Controllers
         [HttpGet("users")]
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetAllUsers()
         {
             try
@@ -45,13 +48,15 @@ namespace LauncherPhantomServer.Controllers
                     u.IsActive,
                     u.LastIp,
                     BanCount = u.Bans.Count
-                }).OrderByDescending(u => u.CreatedAt);
+                }).OrderByDescending(u => u.CreatedAt).ToList();
+
+                _logger.LogInformation($"[API] Obtenidos {result.Count} usuarios");
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en GET /api/admin/users");
+                _logger.LogError(ex, "[API] ERROR en GET /api/admin/users");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -60,15 +65,19 @@ namespace LauncherPhantomServer.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetUser(int id)
         {
             try
             {
-                _logger.LogInformation("[API] GET /api/admin/users/{id}", id);
+                _logger.LogInformation($"[API] GET /api/admin/users/{id}");
                 
                 var user = await _userService.GetUserByIdAsync(id);
                 if (user == null)
+                {
+                    _logger.LogWarning($"[API] Usuario no encontrado: {id}");
                     return NotFound(new { error = "Usuario no encontrado" });
+                }
 
                 return Ok(new
                 {
@@ -86,12 +95,12 @@ namespace LauncherPhantomServer.Controllers
                         b.BannedAt,
                         b.ExpiresAt,
                         b.IsPermanent
-                    })
+                    }).ToList()
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en GET /api/admin/users/{id}", id);
+                _logger.LogError(ex, $"[API] ERROR en GET /api/admin/users/{id}");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -99,6 +108,7 @@ namespace LauncherPhantomServer.Controllers
         [HttpGet("bans")]
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetActiveBans()
         {
             try
@@ -117,13 +127,15 @@ namespace LauncherPhantomServer.Controllers
                     b.BannedAt,
                     b.ExpiresAt,
                     b.IsPermanent
-                }).OrderByDescending(b => b.BannedAt);
+                }).OrderByDescending(b => b.BannedAt).ToList();
+
+                _logger.LogInformation($"[API] Obtenidos {result.Count} bans activos");
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en GET /api/admin/bans");
+                _logger.LogError(ex, "[API] ERROR en GET /api/admin/bans");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -133,21 +145,31 @@ namespace LauncherPhantomServer.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> BanUser([FromBody] BanRequest request)
         {
             try
             {
                 if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("[API] POST /api/admin/ban - Validación fallida");
                     return BadRequest(ModelState);
+                }
 
                 if (request.UserId <= 0 || string.IsNullOrWhiteSpace(request.Reason))
+                {
+                    _logger.LogWarning("[API] POST /api/admin/ban - Datos inválidos");
                     return BadRequest(new { error = "Datos de ban inválidos" });
+                }
 
-                _logger.LogInformation("[API] POST /api/admin/ban - Usuario: {userId} - Razón: {reason}", request.UserId, request.Reason);
+                _logger.LogInformation($"[API] POST /api/admin/ban - Usuario: {request.UserId} - Razón: {request.Reason}");
 
                 var user = await _userService.GetUserByIdAsync(request.UserId);
                 if (user == null)
+                {
+                    _logger.LogWarning($"[API] Usuario no encontrado para ban: {request.UserId}");
                     return NotFound(new { error = "Usuario no encontrado" });
+                }
 
                 var success = await _banService.BanUserAsync(
                     request.UserId,
@@ -158,13 +180,18 @@ namespace LauncherPhantomServer.Controllers
                 );
 
                 if (!success)
+                {
+                    _logger.LogError($"[API] Error al banear usuario: {request.UserId}");
                     return BadRequest(new { error = "Error al banear usuario" });
+                }
+
+                _logger.LogWarning($"[API] Usuario baneado exitosamente: {request.UserId}");
 
                 return Ok(new { success = true, message = "Usuario baneado correctamente" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en POST /api/admin/ban");
+                _logger.LogError(ex, "[API] ERROR en POST /api/admin/ban");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -173,21 +200,27 @@ namespace LauncherPhantomServer.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> UnbanUser(int banId)
         {
             try
             {
-                _logger.LogInformation("[API] DELETE /api/admin/unban/{banId}", banId);
+                _logger.LogInformation($"[API] DELETE /api/admin/unban/{banId}");
                 
                 var success = await _banService.UnbanUserAsync(banId);
                 if (!success)
+                {
+                    _logger.LogWarning($"[API] Ban no encontrado: {banId}");
                     return NotFound(new { error = "Ban no encontrado" });
+                }
+
+                _logger.LogInformation($"[API] Ban eliminado exitosamente: {banId}");
 
                 return Ok(new { success = true, message = "Usuario desbaneado correctamente" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en DELETE /api/admin/unban/{banId}", banId);
+                _logger.LogError(ex, $"[API] ERROR en DELETE /api/admin/unban/{banId}");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -196,21 +229,27 @@ namespace LauncherPhantomServer.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> DeactivateUser(int userId)
         {
             try
             {
-                _logger.LogInformation("[API] POST /api/admin/deactivate/{userId}", userId);
+                _logger.LogInformation($"[API] POST /api/admin/deactivate/{userId}");
                 
                 var success = await _userService.DeactivateUserAsync(userId);
                 if (!success)
+                {
+                    _logger.LogWarning($"[API] Usuario no encontrado: {userId}");
                     return NotFound(new { error = "Usuario no encontrado" });
+                }
+
+                _logger.LogWarning($"[API] Usuario desactivado: {userId}");
 
                 return Ok(new { success = true, message = "Usuario desactivado" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en POST /api/admin/deactivate/{userId}", userId);
+                _logger.LogError(ex, $"[API] ERROR en POST /api/admin/deactivate/{userId}");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }
@@ -219,21 +258,27 @@ namespace LauncherPhantomServer.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> DeleteUser(int userId)
         {
             try
             {
-                _logger.LogInformation("[API] DELETE /api/admin/user/{userId}", userId);
+                _logger.LogInformation($"[API] DELETE /api/admin/user/{userId}");
                 
                 var success = await _userService.DeleteUserAsync(userId);
                 if (!success)
+                {
+                    _logger.LogWarning($"[API] Usuario no encontrado: {userId}");
                     return NotFound(new { error = "Usuario no encontrado" });
+                }
+
+                _logger.LogWarning($"[API] Usuario eliminado: {userId}");
 
                 return Ok(new { success = true, message = "Usuario eliminado" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en DELETE /api/admin/user/{userId}", userId);
+                _logger.LogError(ex, $"[API] ERROR en DELETE /api/admin/user/{userId}");
                 return StatusCode(500, new { error = "Error interno del servidor" });
             }
         }

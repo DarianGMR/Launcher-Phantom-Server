@@ -34,7 +34,7 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error en health check");
+                _logger.LogError(ex, "[API] ERROR en GET /api/launcher/health");
                 return StatusCode(500, new
                 {
                     status = "error",
@@ -56,8 +56,11 @@ namespace LauncherPhantomServer.Controllers
                 
                 if (updateInfo == null)
                 {
+                    _logger.LogError("[API] ERROR: No se pudo leer la información de actualización");
                     return StatusCode(500, new { status = "error", message = "No se pudo leer la información de actualización" });
                 }
+
+                _logger.LogInformation($"[API] Versión actual enviada: {updateInfo.Version}");
 
                 return Ok(new
                 {
@@ -70,8 +73,32 @@ namespace LauncherPhantomServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[API] Error obteniendo versión");
+                _logger.LogError(ex, "[API] ERROR obteniendo versión");
                 return StatusCode(500, new { status = "error", message = "Error interno del servidor" });
+            }
+        }
+
+        [HttpGet("info")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(500)]
+        public IActionResult Info()
+        {
+            try
+            {
+                _logger.LogDebug("[API] GET /api/launcher/info");
+
+                return Ok(new
+                {
+                    serverName = "Launcher Phantom Server",
+                    version = "1.0.0",
+                    status = "online",
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[API] ERROR en GET /api/launcher/info");
+                return StatusCode(500, new { status = "error" });
             }
         }
     }

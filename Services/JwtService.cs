@@ -46,13 +46,13 @@ namespace LauncherPhantomServer.Services
                 );
 
                 var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-                _logger.LogInformation($"[JwtService] Token generado para usuario: {username}");
+                _logger.LogDebug($"[JwtService] Token generado para usuario: {username}");
 
                 return tokenString;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[JwtService] Error generando token");
+                _logger.LogError(ex, "[JwtService] ERROR generando token");
                 throw;
             }
         }
@@ -76,8 +76,9 @@ namespace LauncherPhantomServer.Services
 
                 return validatedToken is JwtSecurityToken;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogDebug($"[JwtService] Token inválido: {ex.Message}");
                 return false;
             }
         }

@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Caching.Memory;
-using System;
 
 namespace LauncherPhantomServer.Services
 {
     /// <summary>
     /// Servicio centralizado de caché para mejorar el rendimiento
+    /// Optimizado para manejar muchas conexiones simultáneas
     /// </summary>
     public class CacheService
     {
@@ -30,7 +30,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning($"Error obteniendo del caché: {ex.Message}");
+                _logger.LogWarning($"[CacheService] Error obteniendo del caché: {ex.Message}");
                 return default;
             }
         }
@@ -43,7 +43,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning($"Error guardando en caché: {ex.Message}");
+                _logger.LogWarning($"[CacheService] Error guardando en caché: {ex.Message}");
             }
         }
 
@@ -55,13 +55,12 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning($"Error removiendo del caché: {ex.Message}");
+                _logger.LogWarning($"[CacheService] Error removiendo del caché: {ex.Message}");
             }
         }
 
         public void RemovePattern(string pattern)
         {
-            // Para patrones, es mejor limpiar manualmente
             Remove(pattern);
         }
 

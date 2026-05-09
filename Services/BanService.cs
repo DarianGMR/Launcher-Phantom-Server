@@ -43,7 +43,7 @@ namespace LauncherPhantomServer.Services
 
                 _context.Bans.Add(ban);
 
-                //  Desactivar usuario en la misma operación
+                // Desactivar usuario en la misma operación
                 var user = await _context.Users.FindAsync(userId);
                 if (user != null)
                 {
@@ -54,16 +54,16 @@ namespace LauncherPhantomServer.Services
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"[BanService] Usuario {userId} baneado por: {reason}");
+                _logger.LogWarning($"[BanService] Usuario {userId} baneado - Razón: {reason}");
                 
-                //  Limpiar caché de bans
+                // Limpiar caché de bans
                 _cacheService.Remove(_cacheService.GetActiveBansCacheKey());
 
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[BanService] Error al banear usuario");
+                _logger.LogError(ex, "[BanService] ERROR al banear usuario");
                 return false;
             }
         }
@@ -84,7 +84,7 @@ namespace LauncherPhantomServer.Services
 
                 _context.Bans.Remove(ban);
 
-                //  Reactivar usuario si no tiene otros bans activos
+                // Reactivar usuario si no tiene otros bans activos
                 var user = await _context.Users.FindAsync(ban.UserId);
                 if (user != null)
                 {
@@ -109,7 +109,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[BanService] Error al desbanear usuario");
+                _logger.LogError(ex, "[BanService] ERROR al desbanear usuario");
                 return false;
             }
         }
@@ -126,24 +126,25 @@ namespace LauncherPhantomServer.Services
 
                 if (cachedBans != null)
                 {
+                    _logger.LogDebug("[BanService] Bans obtenidos del caché");
                     return cachedBans;
                 }
 
-                //  Índice compuesto mejora esta consulta significativamente
+                // Índice compuesto mejora esta consulta significativamente
                 var activeBans = await _context.Bans
                     .Where(b => b.IsPermanent || b.ExpiresAt > DateTime.UtcNow)
                     .Include(b => b.User)
                     .AsNoTracking()
                     .ToListAsync();
 
-                //  Cachear por 1 minuto
+                // Cachear por 1 minuto
                 _cacheService.Set(cacheKey, activeBans, TimeSpan.FromMinutes(1));
 
                 return activeBans;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[BanService] Error obteniendo bans activos");
+                _logger.LogError(ex, "[BanService] ERROR obteniendo bans activos");
                 return new List<Ban>();
             }
         }
@@ -162,7 +163,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"[BanService] Error obteniendo bans para usuario {userId}");
+                _logger.LogError(ex, $"[BanService] ERROR obteniendo bans para usuario {userId}");
                 return new List<Ban>();
             }
         }
@@ -177,7 +178,7 @@ namespace LauncherPhantomServer.Services
                 if (string.IsNullOrWhiteSpace(ipAddress))
                     return null;
 
-                //  Índice en IpAddress mejora esta búsqueda
+                // Índice en IpAddress mejora esta búsqueda
                 return await _context.Bans
                     .Where(b => b.IpAddress == ipAddress.Trim() && (b.IsPermanent || b.ExpiresAt > DateTime.UtcNow))
                     .AsNoTracking()
@@ -185,7 +186,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"[BanService] Error verificando ban por IP");
+                _logger.LogError(ex, $"[BanService] ERROR verificando ban por IP");
                 return null;
             }
         }
@@ -214,7 +215,7 @@ namespace LauncherPhantomServer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[BanService] Error limpiando bans expirados");
+                _logger.LogError(ex, "[BanService] ERROR limpiando bans expirados");
                 return 0;
             }
         }
